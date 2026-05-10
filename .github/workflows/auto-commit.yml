@@ -1,0 +1,44 @@
+name: Auto Commit
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Random delay
+        run: sleep $((RANDOM % 1800))
+
+      - name: Roll the dice
+        id: roll
+        run: |
+          if [ $((RANDOM % 100)) -lt 25 ]; then
+            echo "go=true" >> $GITHUB_OUTPUT
+          else
+            echo "go=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update activity log
+        if: steps.roll.outputs.go == 'true'
+        run: |
+          MESSAGES=("update notes" "refactor: tidy up" "docs: small fix" "chore: housekeeping" "wip" "improve readability" "minor cleanup")
+          MSG=${MESSAGES[$RANDOM % ${#MESSAGES[@]}]}
+          date '+%Y-%m-%d %H:%M:%S' >> activity.log
+          echo "MSG=$MSG" >> $GITHUB_ENV
+
+      - name: Commit and push
+        if: steps.roll.outputs.go == 'true'
+        run: |
+          git config user.name "${{ github.repository_owner }}"
+          git config user.email "${{ vars.GIT_EMAIL }}"
+          git add -A
+          git commit -m "$MSG"
+          git push
